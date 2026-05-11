@@ -1,0 +1,101 @@
+name: CI/CD Gym Project
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  CSV_URL: "MLProject/gym_dataset_preprocessing.csv"
+  TARGET_VAR: "Experience_Level"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout Repository
+      - name: Run actions/checkout@v3
+        uses: actions/checkout@v3
+
+      # 2. Setup Python
+      - name: Set up Python 3.12.7
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12.7"
+
+      # 3. Check Environment
+      - name: Check Env
+        run: |
+          echo "CSV_URL=$CSV_URL"
+          echo "TARGET_VAR=$TARGET_VAR"
+          python --version
+          pip --version
+
+      # 4. Install Dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mlflow==2.19.0
+
+      # 5. Run MLflow Project
+      - name: Run mlflow project
+        run: |
+          mlflow run MLProject --env-manager=local
+
+      # 6. Get Latest MLflow Run ID
+      - name: Get latest MLflow run_id
+        run: |
+          RUN_ID=$(ls -td mlruns/0/*/ | head -n 1 | cut -d'/' -f3)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+          echo "Latest run_id: $RUN_ID"
+
+      # 7. Install Additional Python Dependencies
+      - name: Install Python dependencies
+        run: |
+          pip install boto3
+
+      # 8. Save MLflow Artifact to GitHub Repository
+      - name: Save MLflow artifacts
+        run: |
+          mkdir -p saved_models
+          cp -r mlruns saved_models/
+
+      # 9. Commit Artifact to Same GitHub Repository
+      - name: Commit artifacts to repository
+        run: |
+          git config --global user.name ${{ secrets.USERNAME }}
+          git config --global user.email ${{ secrets.EMAIL }}
+
+          git add saved_models/
+
+          git commit -m "Update MLflow artifacts" || echo "No changes to commit"
+
+          git push
+
+      # 10. Build Docker Model
+      - name: Build Docker Model
+        run: |
+          mlflow models build-docker \
+          --model-uri "runs:/$RUN_ID/model" \
+          --name "gym-exercise" \
+          --env-manager=local
+
+      # 11. Log in to Docker Hub
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # 12. Tag Docker Image
+      - name: Tag Docker Image
+        run: |
+          docker tag gym-exercise \
+          ${{ secrets.DOCKERHUB_USERNAME }}/gym-exercise:latest
+
+      # 13. Push Docker Image
+      - name: Push Docker Image
+        run: |
+          docker push \
+          ${{ secrets.DOCKERHUB_USERNAME }}/gym-exercise:latest
