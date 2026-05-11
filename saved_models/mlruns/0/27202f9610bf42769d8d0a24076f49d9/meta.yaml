@@ -1,0 +1,15 @@
+artifact_uri: file:///home/runner/work/Workflow-CI/Workflow-CI/mlruns/0/27202f9610bf42769d8d0a24076f49d9/artifacts
+end_time: 1778502674969
+entry_point_name: ''
+experiment_id: '0'
+lifecycle_stage: active
+run_id: 27202f9610bf42769d8d0a24076f49d9
+run_name: languid-moose-71
+run_uuid: 27202f9610bf42769d8d0a24076f49d9
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1778502667509
+status: 3
+tags: []
+user_id: runner
